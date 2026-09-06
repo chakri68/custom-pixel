@@ -41,7 +41,7 @@ export function buildShell(): Shell {
     h("div", { class: "empty-title", text: "NO IMAGE" }),
     h("div", {
       class: "empty-sub",
-      text: "drop a file anywhere, or pick one below",
+      text: "drop a png, jpg or webp anywhere on the page",
     }),
     emptyActions,
   ]);

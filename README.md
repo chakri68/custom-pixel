@@ -81,7 +81,7 @@ src/core/       the renderer, environment-agnostic
   renderRaster / renderSvg    two consumers of that one list
 
 src/worker/     engine.ts is the whole renderer; the worker is a 5-line adapter
-src/app/        store, render host, demo images, image + SVG loading
+src/app/        store, render host, image + SVG loading
 src/ui/         hand-rolled controls, no framework
 ```
 
@@ -113,11 +113,10 @@ identical engine runs inline instead.
 - **`edge` was added to `RenderConfig`.** The spec never says what happens at
   the boundary, and the default answer — clip whatever the canvas cuts — leaves
   half-shapes down the sides of every offset grid.
-- **No default image.** The spec opens with a demo image loaded "so the canvas
-  is never empty"; this starts empty instead and asks for an upload, with the
-  demo images one click away in the canvas well and the left panel.
-- **Demo images are drawn, not shipped.** No binary blobs, no licence questions,
-  and the tonal range is guaranteed to suit the size mappings.
+- **No bundled images at all.** The spec wants a demo image loaded on open "so
+  the canvas is never empty" plus sample images shipped with the app. There are
+  neither: the canvas starts empty and waits for your upload. Nothing to
+  licence, nothing to ship, no binary blobs in the repo.
 
 ## not built
 

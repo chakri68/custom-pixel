@@ -348,17 +348,6 @@ body.resizing .stage {
   margin-top: 4px;
 }
 
-.empty-or {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-}
-
-.empty-actions .chips {
-  justify-content: center;
-}
-
 /* ============================================================ panels ==== */
 
 .sidebar {

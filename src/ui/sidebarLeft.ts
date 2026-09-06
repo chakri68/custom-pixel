@@ -1,12 +1,10 @@
 import type { Store } from "../app/store.ts";
-import { DEMO_IMAGES } from "../app/demo.ts";
 import { PRESETS } from "../config/presets.ts";
 import { button, section, select, type Ui } from "./controls.ts";
 import { h } from "./dom.ts";
 
 export interface SourceActions {
   upload: () => void;
-  useDemo: (id: string) => void;
   applyPreset: (id: string) => void;
   applyCustomSvg: (text: string) => void;
 }
@@ -33,23 +31,8 @@ export function buildLeftSidebar(
     button("Choose file", actions.upload, "btn primary"),
   ]);
 
-  const demos = h(
-    "div",
-    { class: "chips" },
-    DEMO_IMAGES.map((d) =>
-      h("button", {
-        class: "chip",
-        attr: { type: "button" },
-        text: d.name,
-        on: { click: () => actions.useDemo(d.id) },
-      }),
-    ),
-  );
-
   const source = section("SOURCE", [
     dropzone,
-    h("div", { class: "row-label", text: "Demo images" }),
-    demos,
     select(ui, {
       label: "Fit",
       options: [

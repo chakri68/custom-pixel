@@ -1,7 +1,6 @@
 import "./style.css";
 
 import { normalizeSvgPath } from "./app/customSvg.ts";
-import { DEMO_IMAGES, renderDemo } from "./app/demo.ts";
 import { downloadBlob, loadImageFile, pickImageFile } from "./app/imageLoad.ts";
 import { createRenderHost } from "./app/renderHost.ts";
 import { createStore } from "./app/store.ts";
@@ -74,7 +73,6 @@ function showStats(stats: RenderStats): void {
 
 const left = buildLeftSidebar(ui, store, {
   upload: () => void chooseFile(),
-  useDemo: (id) => void useDemo(id),
   applyPreset: (id) => {
     const p = PRESETS.find((x) => x.id === id);
     if (p) {
@@ -252,11 +250,6 @@ async function loadFile(file: File): Promise<void> {
   }
 }
 
-async function useDemo(id: string): Promise<void> {
-  const demo = DEMO_IMAGES.find((d) => d.id === id) ?? DEMO_IMAGES[0];
-  await setImage(await renderDemo(demo), demo.id);
-}
-
 function applyCustomSvg(text: string): void {
   if (!text.trim()) {
     host.setCustomSvg(undefined);
@@ -397,29 +390,12 @@ function resetStats(): void {
   shell.statMode.textContent = host.usingWorker ? "worker" : "inline";
 }
 
-function buildEmptyState(): void {
-  shell.emptyActions.append(
-    button("Choose file", () => void chooseFile(), "btn primary"),
-    h("span", { class: "empty-or", text: "or try" }),
-    h(
-      "div",
-      { class: "chips" },
-      DEMO_IMAGES.map((d) =>
-        h("button", {
-          class: "chip",
-          attr: { type: "button" },
-          text: d.name,
-          on: { click: () => void useDemo(d.id) },
-        }),
-      ),
-    ),
-  );
-}
-
 async function boot(): Promise<void> {
   syncAll();
   resetStats();
-  buildEmptyState();
+  shell.emptyActions.append(
+    button("Choose file", () => void chooseFile(), "btn primary"),
+  );
   // Deliberately no default image: the canvas starts empty and waits for one.
 
   const intro = document.getElementById("intro");

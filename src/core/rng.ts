@@ -17,15 +17,3 @@ export function hash01(seed: number, i: number): number {
 export function hash3(seed: number, i: number, stream: number): number {
   return hash01(seed + stream * 0x27d4eb2d, i);
 }
-
-/** mulberry32 — small, fast, good enough for jitter. */
-export function makeRng(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
