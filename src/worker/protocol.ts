@@ -1,4 +1,5 @@
 import type { Normalization } from "../core/primitives.ts";
+import type { ViewTransform } from "../core/renderRaster.ts";
 import type { RenderConfig, RenderStats } from "../types.ts";
 
 /**
@@ -17,6 +18,10 @@ export interface RenderJob {
   layoutW: number;
   layoutH: number;
   customSvg?: CustomSvgPayload;
+  /** Preview only. Exports always cover the whole composition. */
+  view?: ViewTransform;
+  /** Draw the fitted source instead of the cells, for A/B comparison. */
+  peek?: boolean;
 }
 
 export type MainToWorker =

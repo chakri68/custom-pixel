@@ -43,6 +43,8 @@ export function paletteEditor(
       type: "text",
       placeholder: "#0b0b0a, #ffb000, #ece7da",
       spellcheck: "false",
+      id: "palette-paste",
+      name: "paletteHexList",
       "aria-label": "Paste a hex colour list",
     },
     on: {
@@ -89,6 +91,8 @@ export function paletteEditor(
         attr: {
           type: "color",
           value: /^#[0-9a-f]{6}$/i.test(c) ? c : "#000000",
+          id: `palette-swatch-${i}`,
+          name: `paletteColour${i}`,
           "aria-label": `Palette colour ${i + 1}`,
         },
         on: {

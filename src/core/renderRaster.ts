@@ -6,6 +6,40 @@ const DEG = Math.PI / 180;
 type Ctx = OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
 
 /**
+ * Where the viewport is looking: `zoom` magnifies and (cx, cy) is the layout
+ * point held at the centre of the canvas.
+ *
+ * This is applied at draw time and nothing else, which is the whole point —
+ * zooming re-renders the same cell list at a different magnification instead
+ * of re-laying out the grid. Shapes stay crisp at any zoom and the pipeline
+ * result stays cached.
+ */
+export interface ViewTransform {
+  zoom: number;
+  cx: number;
+  cy: number;
+}
+
+export function identityView(layoutW: number, layoutH: number): ViewTransform {
+  return { zoom: 1, cx: layoutW / 2, cy: layoutH / 2 };
+}
+
+/** Collapses view + export scale into one multiply and one offset. */
+export function viewMatrix(
+  view: ViewTransform | undefined,
+  layoutW: number,
+  layoutH: number,
+  scale: number,
+): { z: number; ox: number; oy: number } {
+  const v = view ?? identityView(layoutW, layoutH);
+  return {
+    z: v.zoom * scale,
+    ox: (layoutW / 2 - v.cx * v.zoom) * scale,
+    oy: (layoutH / 2 - v.cy * v.zoom) * scale,
+  };
+}
+
+/**
  * Draws a finished `PipelineResult`. `scale` multiplies positions and sizes,
  * which is all an "export at 4x" is — the composition is already decided.
  */
@@ -16,6 +50,7 @@ export function drawResult(
   layoutW: number,
   layoutH: number,
   scale: number,
+  view?: ViewTransform,
 ): void {
   const W = Math.round(layoutW * scale);
   const H = Math.round(layoutH * scale);
@@ -30,6 +65,7 @@ export function drawResult(
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
+  const { z, ox, oy } = viewMatrix(view, layoutW, layoutH, scale);
   const { cells, styles } = result;
   const order = drawOrder(styles, result.palette);
 
@@ -55,7 +91,7 @@ export function drawResult(
   for (const i of order) {
     const cell = cells[i];
     const style = styles[i];
-    const s = style.scale * scale;
+    const s = style.scale * z;
     if (s <= 0) continue;
 
     if (style.opacity !== lastAlpha) {
@@ -74,8 +110,8 @@ export function drawResult(
     const r = style.rotation * DEG;
     const cos = Math.cos(r);
     const sin = Math.sin(r);
-    const x = cell.x * scale;
-    const y = cell.y * scale;
+    const x = cell.x * z + ox;
+    const y = cell.y * z + oy;
 
     if (style.primitive === "glyph") {
       // Glyphs draw at real font size rather than through a scaled transform,
@@ -84,7 +120,7 @@ export function drawResult(
       ctx.font = `${s.toFixed(2)}px ui-monospace, "JetBrains Mono", monospace`;
       if (style.fill) ctx.fillText(style.glyph ?? "?", 0, 0);
       if (style.stroke) {
-        const lw = style.strokeWidth * scale;
+        const lw = style.strokeWidth * z;
         if (lw !== lastLine) {
           ctx.lineWidth = lw;
           lastLine = lw;

@@ -20,21 +20,21 @@ function editing(el: Element): boolean {
 let uid = 0;
 
 /**
- * Wires the row's label to whatever focusable thing the control wraps. Real
- * form fields get `for`/`id`; the chip toggles are buttons, which `for` does
- * not address, so they get `aria-labelledby` instead.
+ * Wires the row's label to whatever focusable thing the control wraps.
+ *
+ * Real form fields get `for`/`id`. The chip toggles are `role="switch"`
+ * buttons, which `for` does not address — and pointing `aria-labelledby` at a
+ * bare `<label>` does not satisfy Chrome's form-field audit either — so they
+ * carry the text directly on `aria-label`.
  */
 function linkLabel(label: HTMLLabelElement, control: HTMLElement): void {
-  const target =
-    control.matches("input, select, textarea, button")
-      ? control
-      : control.querySelector<HTMLElement>("input, select, textarea, button");
+  const target = control.matches("input, select, textarea, button")
+    ? control
+    : control.querySelector<HTMLElement>("input, select, textarea, button");
   if (!target) return;
-  const n = ++uid;
-  target.id = target.id || `ctl-${n}`;
+  target.id = target.id || `ctl-${++uid}`;
   if (target instanceof HTMLButtonElement) {
-    label.id = `lbl-${n}`;
-    target.setAttribute("aria-labelledby", label.id);
+    target.setAttribute("aria-label", label.textContent ?? "");
   } else {
     label.htmlFor = target.id;
   }
@@ -138,16 +138,26 @@ export interface ToggleOpts extends RowOpts {
 }
 
 export function toggle(ui: Ui, o: ToggleOpts): HTMLElement {
-  const el = h("button", {
-    class: "chip toggle",
-    attr: { type: "button", role: "switch" },
-    on: { click: () => o.set(!o.get()) },
+  // A real checkbox rather than a button with role="switch": it takes the
+  // row's `for`/`id` association, gets space-to-toggle for free, and reports
+  // its state to assistive tech without any aria bookkeeping. The input is
+  // stretched transparently over the chip, so the chip is the hit target.
+  const input = h("input", {
+    class: "toggle-input",
+    attr: { type: "checkbox", role: "switch" },
+    on: { change: () => o.set(input.checked) },
+  }) as HTMLInputElement;
+  const text = h("span", {
+    class: "toggle-text",
+    attr: { "aria-hidden": "true" },
   });
+  const el = h("span", { class: "chip toggle" }, [input, text]);
+
   return row(o, el, ui, () => {
     const on = o.get();
     el.classList.toggle("on", on);
-    el.textContent = on ? "ON" : "OFF";
-    el.setAttribute("aria-checked", String(on));
+    input.checked = on;
+    text.textContent = on ? "ON" : "OFF";
   });
 }
 

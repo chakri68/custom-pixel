@@ -8,7 +8,8 @@ image metric can drive any visual property, so you can map luminance to size for
 a halftone, hue to rotation for something weirder, or brightness to *which shape
 gets drawn*. Exports PNG or print-ready SVG.
 
-Runs entirely in the browser. Nothing is uploaded anywhere.
+Runs entirely in the browser. Nothing is uploaded anywhere, and there is no
+default image — the canvas waits for yours.
 
 ## why this exists
 
@@ -39,6 +40,15 @@ and centres the grid to fit complete shapes and drops anything still hanging
 over, which for hexagons means the boundary is an interlocked zigzag rather than
 a straight cut — the only honest way to end a honeycomb. `Edge: bleed` restores
 the full-bleed behaviour.
+
+**Zoom is a view transform, never a render parameter.** Scroll to zoom, drag to
+pan, double-click or `0` to fit, `+`/`-` to step, and hold `H` to A/B against
+the source image under the same transform. Zooming re-renders the same cell
+list at a different magnification rather than re-laying out the grid, so shapes
+stay vector-crisp at 3200% and the cell count never moves. It is also cheap:
+the pipeline result is cached, so a pan costs a draw pass (~6ms) and not a
+resample. Exports ignore the viewport — you get the artwork, not the crop you
+happen to be looking at.
 
 **Layout is specified in columns, not pixels.** Cell size is derived from output
 width ÷ columns, so "export at 4×" is a pure scale of the same cell positions.
@@ -103,6 +113,9 @@ identical engine runs inline instead.
 - **`edge` was added to `RenderConfig`.** The spec never says what happens at
   the boundary, and the default answer — clip whatever the canvas cuts — leaves
   half-shapes down the sides of every offset grid.
+- **No default image.** The spec opens with a demo image loaded "so the canvas
+  is never empty"; this starts empty instead and asks for an upload, with the
+  demo images one click away in the canvas well and the left panel.
 - **Demo images are drawn, not shipped.** No binary blobs, no licence questions,
   and the tonal range is guaranteed to suit the size mappings.
 

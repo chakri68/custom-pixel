@@ -1,3 +1,4 @@
+import { identityView, type ViewTransform } from "../core/renderRaster.ts";
 import type { RenderConfig, RenderStats } from "../types.ts";
 import { createEngine } from "../worker/engine.ts";
 import type {
@@ -18,8 +19,11 @@ import type {
 const DRAFT_MAX_COLUMNS = 60;
 const MAX_LAYOUT_WIDTH = 2000;
 const BUSY_AFTER_MS = 100;
+export const MIN_ZOOM = 0.5;
+export const MAX_ZOOM = 32;
 
 export interface HostCallbacks {
+  onView: (view: ViewTransform) => void;
   onStats: (stats: RenderStats, truncated: boolean) => void;
   onBusy: (busy: boolean) => void;
   onError: (message: string) => void;
@@ -28,6 +32,8 @@ export interface HostCallbacks {
 
 export interface RenderHost {
   setImage: (bitmap: ImageBitmap, aspect: number) => void;
+  /** False until an image has been handed over; renders are refused before that. */
+  hasImage: () => boolean;
   setCustomSvg: (svg: CustomSvgPayload | undefined) => void;
   setInteracting: (on: boolean) => void;
   request: (config: RenderConfig) => void;
@@ -40,6 +46,16 @@ export interface RenderHost {
   exportSvg: (config: RenderConfig, scale: number) => Promise<string>;
   layout: () => { w: number; h: number };
   usingWorker: boolean;
+
+  /* -- viewport -- */
+  view: () => ViewTransform;
+  /** Zoom by a factor, holding the given canvas-relative CSS point still. */
+  zoomAt: (factor: number, clientX?: number, clientY?: number) => void;
+  /** Pan by a CSS-pixel delta. */
+  panBy: (dx: number, dy: number) => void;
+  resetView: () => void;
+  setPeek: (on: boolean) => void;
+  peeking: () => boolean;
 }
 
 export function createRenderHost(
@@ -60,7 +76,15 @@ export function createRenderHost(
   let sourceAspect = 1;
   let layoutW = 800;
   let layoutH = 600;
+  let view: ViewTransform = identityView(layoutW, layoutH);
+  let viewDirty = false;
+  let peek = false;
+  // There is no default image. Everything that would touch the renderer is
+  // gated on this, so a config change before the first upload is a no-op
+  // rather than a worker error.
+  let loaded = false;
 
+  let lastConfig: RenderConfig | null = null;
   const pending = new Map<
     number,
     { resolve: (v: never) => void; reject: (e: Error) => void }
@@ -142,6 +166,7 @@ export function createRenderHost(
       scheduled = false;
       if (inFlight || !queued) return;
       const config = queued;
+      lastConfig = config;
       queued = null;
       dispatch(config);
     });
@@ -159,6 +184,8 @@ export function createRenderHost(
       layoutW,
       layoutH,
       customSvg,
+      view,
+      peek,
     });
   }
 
@@ -197,6 +224,35 @@ export function createRenderHost(
       canvas.width = layoutW;
       canvas.height = layoutH;
     }
+    if (!viewDirty) view = identityView(layoutW, layoutH);
+    else clampView();
+  }
+
+  /**
+   * Keeps the held point inside the composition, so panning can never strand
+   * the viewport on empty background.
+   */
+  function clampView(): void {
+    view = {
+      zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, view.zoom)),
+      cx: Math.min(layoutW, Math.max(0, view.cx)),
+      cy: Math.min(layoutH, Math.max(0, view.cy)),
+    };
+  }
+
+  /** CSS pixels on the canvas element -> layout units. */
+  function cssToLayout(): number {
+    const rect = canvas.getBoundingClientRect();
+    return rect.width > 0 ? layoutW / rect.width : 1;
+  }
+
+  function requestViewRender(): void {
+    viewDirty = view.zoom !== 1;
+    cbs.onView(view);
+    if (loaded) {
+      queued = lastConfig;
+      schedule();
+    }
   }
 
   function ask<T>(msg: MainToWorker): Promise<T> {
@@ -212,9 +268,11 @@ export function createRenderHost(
   return {
     usingWorker,
     layout: () => ({ w: layoutW, h: layoutH }),
+    hasImage: () => loaded,
 
     setImage(bitmap, aspect) {
       sourceAspect = aspect;
+      loaded = true;
       send({ type: "image", bitmap }, usingWorker ? [bitmap] : []);
     },
 
@@ -226,19 +284,72 @@ export function createRenderHost(
       interacting = on;
     },
 
+    view: () => view,
+
+    zoomAt(factor, clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const k = cssToLayout();
+      const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, view.zoom * factor));
+      if (next === view.zoom) return;
+      if (clientX !== undefined && clientY !== undefined) {
+        // Hold the point under the cursor: solve for the centre that keeps
+        // its screen position fixed across the zoom change.
+        const sx = (clientX - rect.left) * k - layoutW / 2;
+        const sy = (clientY - rect.top) * k - layoutH / 2;
+        const lx = sx / view.zoom + view.cx;
+        const ly = sy / view.zoom + view.cy;
+        view = { zoom: next, cx: lx - sx / next, cy: ly - sy / next };
+      } else {
+        view = { ...view, zoom: next };
+      }
+      clampView();
+      requestViewRender();
+    },
+
+    panBy(dx, dy) {
+      const k = cssToLayout() / view.zoom;
+      view = { ...view, cx: view.cx - dx * k, cy: view.cy - dy * k };
+      clampView();
+      requestViewRender();
+    },
+
+    resetView() {
+      view = identityView(layoutW, layoutH);
+      requestViewRender();
+    },
+
+    setPeek(on) {
+      if (peek === on) return;
+      peek = on;
+      if (loaded) {
+        queued = lastConfig;
+        schedule();
+      }
+    },
+
+    peeking: () => peek,
+
     request(config) {
+      if (!loaded) return;
+      lastConfig = config;
       applyLayout(config);
       queued = config;
       schedule();
     },
 
     resize(config) {
+      if (!loaded) return;
+      lastConfig = config;
       applyLayout(config);
       queued = config;
       schedule();
     },
 
+    // Exports deliberately omit `view`: you get the artwork, not the crop
+    // you happen to be looking at.
     exportRaster(config, scale, format) {
+      if (!loaded) return Promise.reject(new Error("Load an image first"));
+      lastConfig = config;
       applyLayout(config);
       return ask<Blob>({
         type: "exportRaster",
@@ -254,6 +365,7 @@ export function createRenderHost(
     },
 
     exportSvg(config, scale) {
+      if (!loaded) return Promise.reject(new Error("Load an image first"));
       applyLayout(config);
       return ask<string>({
         type: "exportSvg",

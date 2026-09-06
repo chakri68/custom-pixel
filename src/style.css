@@ -221,8 +221,71 @@ body.resizing .stage {
   display: block;
   max-width: 100%;
   max-height: 100%;
-  cursor: crosshair;
+  /* Grab, not crosshair: the canvas is pannable now, and the cursor should
+     say so. It becomes a closed hand mid-drag. */
+  cursor: grab;
+  touch-action: none;
   image-rendering: auto;
+}
+
+.frame.panning .preview {
+  cursor: grabbing;
+}
+
+/* ------------------------------------------------------- viewer controls */
+
+.viewer-bar {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.82);
+  opacity: 0.35;
+  transition: opacity 0.15s;
+}
+
+.frame:hover .viewer-bar,
+.viewer-bar:focus-within {
+  opacity: 1;
+}
+
+.frame.is-empty .viewer-bar {
+  display: none;
+}
+
+.btn-mini {
+  padding: 3px 9px;
+  font-size: 11px;
+  border-radius: 999px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  min-width: 28px;
+}
+
+.btn-mini:hover {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+
+.btn-mini.on {
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+.zoom-label {
+  min-width: 48px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 .busy {
@@ -243,6 +306,57 @@ body.resizing .stage {
 
 .busy.show {
   opacity: 1;
+}
+
+/* ======================================================= empty state ==== */
+
+.empty {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.frame.is-empty .empty {
+  display: flex;
+}
+
+.frame.is-empty .preview {
+  display: none;
+}
+
+.empty-title {
+  font-family: var(--font-pixel);
+  font-size: 16px;
+  letter-spacing: -0.5px;
+  color: var(--accent);
+  text-shadow: 0 0 14px rgba(255, 176, 0, 0.5);
+}
+
+.empty-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.empty-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.empty-or {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.empty-actions .chips {
+  justify-content: center;
 }
 
 /* ============================================================ panels ==== */
@@ -301,12 +415,17 @@ body.resizing .stage {
 }
 
 .row-label {
-  flex: 0 0 116px;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
   line-height: 1.3;
+}
+
+/* Only fix the width inside a row. Standalone labels sit in column flex
+   containers, where a flex-basis would become a 116px tall gap. */
+.row > .row-label {
+  flex: 0 0 116px;
 }
 
 .row > *:not(.row-label) {
@@ -564,9 +683,29 @@ input[type="color"]:disabled {
 }
 
 .chip.toggle {
+  position: relative;
+  display: inline-block;
   flex: 0 0 auto;
   min-width: 52px;
   text-align: center;
+  cursor: pointer;
+}
+
+/* The checkbox is the whole hit target; the chip is only its skin. */
+.toggle-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.chip.toggle:has(.toggle-input:focus-visible) {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
 }
 
 /* ============================================================= cards ==== */
@@ -625,7 +764,7 @@ input[type="color"]:disabled {
   gap: 6px 10px;
 }
 
-.ease-grid .row-label {
+.ease-grid .row > .row-label {
   flex-basis: 44px;
 }
 
@@ -813,7 +952,7 @@ input[type="color"]:disabled {
   width: 260px;
 }
 
-.bottom-controls .row-label {
+.bottom-controls .row > .row-label {
   flex-basis: 60px;
 }
 

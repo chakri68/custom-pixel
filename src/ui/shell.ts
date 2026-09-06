@@ -14,6 +14,12 @@ export interface Shell {
   stage: HTMLElement;
   frame: HTMLElement;
   canvas: HTMLCanvasElement;
+  /** Shown in the canvas well until an image is loaded. */
+  empty: HTMLElement;
+  emptyActions: HTMLElement;
+  setEmpty: (empty: boolean) => void;
+  /** Floating viewport controls inside the canvas well. */
+  viewerBar: HTMLElement;
   busy: HTMLElement;
   statCells: HTMLElement;
   statMs: HTMLElement;
@@ -30,8 +36,26 @@ export function buildShell(): Shell {
   }) as HTMLCanvasElement;
 
   const busy = h("div", { class: "busy", text: "RENDERING" });
-  const frame = h("div", { class: "frame" }, [canvas, busy]);
+  const emptyActions = h("div", { class: "empty-actions" });
+  const empty = h("div", { class: "empty" }, [
+    h("div", { class: "empty-title", text: "NO IMAGE" }),
+    h("div", {
+      class: "empty-sub",
+      text: "drop a file anywhere, or pick one below",
+    }),
+    emptyActions,
+  ]);
+  const viewerBar = h("div", { class: "viewer-bar" });
+  const frame = h("div", { class: "frame is-empty" }, [
+    canvas,
+    empty,
+    viewerBar,
+    busy,
+  ]);
   const stage = h("div", { class: "stage" }, [frame]);
+  const setEmpty = (isEmpty: boolean): void => {
+    frame.classList.toggle("is-empty", isEmpty);
+  };
 
   const topActions = h("div", { class: "top-actions" });
   const top = h("header", { class: "topbar" }, [
@@ -137,7 +161,8 @@ export function buildShell(): Shell {
 
   return {
     root, topActions, leftSlot, rightSlot, bottomSlot, stage, frame, canvas,
-    busy, statCells, statMs, statSize, statMode, toast, openModal,
+    empty, emptyActions, setEmpty, viewerBar, busy, statCells, statMs, statSize,
+    statMode, toast, openModal,
   };
 }
 

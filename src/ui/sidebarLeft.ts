@@ -98,6 +98,8 @@ export function buildLeftSidebar(
     attr: {
       rows: "4",
       spellcheck: "false",
+      id: "custom-svg-input",
+      name: "customSvgPath",
       "aria-label": "Custom SVG path data",
       placeholder: "M12 2 L22 20 L2 20 Z   — or paste a whole <svg>",
     },

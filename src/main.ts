@@ -36,9 +36,15 @@ const syncAll = (): void => {
 };
 
 let derivedPalette: string[] | null = null;
-let imageName = "demo";
+let imageName = "image";
+
+const zoomLabel = h("span", { class: "zoom-label", text: "100%" });
 
 const host = createRenderHost(shell.canvas, shell.stage, {
+  onView: (view) => {
+    zoomLabel.textContent = `${Math.round(view.zoom * 100)}%`;
+    shell.frame.classList.toggle("zoomed", view.zoom !== 1);
+  },
   onStats: (stats, truncated) => {
     showStats(stats);
     if (truncated) {
@@ -120,6 +126,93 @@ shell.topActions.append(
   button("Export PNG", () => void exportRaster(2, "png"), "btn primary"),
 );
 
+/* ---------------------------------------------------------------- viewer */
+
+const peekBtn = button("SRC", () => setPeek(!host.peeking()), "btn btn-mini");
+
+function setPeek(on: boolean): void {
+  host.setPeek(on);
+  peekBtn.classList.toggle("on", on);
+}
+
+shell.viewerBar.append(
+  button("−", () => host.zoomAt(1 / 1.4), "btn btn-mini"),
+  zoomLabel,
+  button("+", () => host.zoomAt(1.4), "btn btn-mini"),
+  button("Fit", () => host.resetView(), "btn btn-mini"),
+  peekBtn,
+);
+
+{
+  const canvas = shell.canvas;
+
+  canvas.addEventListener(
+    "wheel",
+    (ev) => {
+      ev.preventDefault();
+      // Trackpads report fractional deltas; exponentiating keeps the zoom
+      // rate even whether the input is a notched wheel or a smooth swipe.
+      host.zoomAt(Math.exp(-ev.deltaY * 0.002), ev.clientX, ev.clientY);
+    },
+    { passive: false },
+  );
+
+  let panning = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  canvas.addEventListener("pointerdown", (ev) => {
+    if (ev.button !== 0) return;
+    panning = true;
+    lastX = ev.clientX;
+    lastY = ev.clientY;
+    try {
+      canvas.setPointerCapture(ev.pointerId);
+    } catch {
+      // Pointer already gone. The window-level pointerup below still ends
+      // the drag, so this must not leave the canvas stuck in panning state.
+    }
+    shell.frame.classList.add("panning");
+  });
+
+  canvas.addEventListener("pointermove", (ev) => {
+    if (!panning) return;
+    host.panBy(ev.clientX - lastX, ev.clientY - lastY);
+    lastX = ev.clientX;
+    lastY = ev.clientY;
+  });
+
+  const endPan = (): void => {
+    panning = false;
+    shell.frame.classList.remove("panning");
+  };
+  canvas.addEventListener("pointerup", endPan);
+  canvas.addEventListener("pointercancel", endPan);
+  // Backstop: if capture failed, the release lands outside the canvas.
+  window.addEventListener("pointerup", endPan);
+  canvas.addEventListener("dblclick", () => host.resetView());
+
+  // Hold H to compare against the source, the way a loupe works.
+  document.addEventListener("keydown", (ev) => {
+    if (isTyping(ev.target)) return;
+    if (ev.key === "h" || ev.key === "H") return setPeek(true);
+    if (ev.key === "0") return host.resetView();
+    if (ev.key === "+" || ev.key === "=") return host.zoomAt(1.4);
+    if (ev.key === "-" || ev.key === "_") return host.zoomAt(1 / 1.4);
+  });
+  document.addEventListener("keyup", (ev) => {
+    if ((ev.key === "h" || ev.key === "H") && !isTyping(ev.target)) setPeek(false);
+  });
+}
+
+function isTyping(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  return (
+    !!el &&
+    (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)
+  );
+}
+
 /* -------------------------------------------------------------- reactions */
 
 let hashTimer: number | undefined;
@@ -140,6 +233,7 @@ new ResizeObserver(() => host.resize(store.get())).observe(shell.stage);
 async function setImage(bitmap: ImageBitmap, name: string): Promise<void> {
   imageName = name;
   host.setImage(bitmap, bitmap.width / bitmap.height);
+  shell.setEmpty(false);
   host.request(store.get());
 }
 
@@ -210,6 +304,7 @@ function stamp(): string {
 }
 
 async function exportRaster(scale: number, format: "png" | "jpeg"): Promise<void> {
+  if (!host.hasImage()) return void shell.toast("Load an image first", "warn");
   try {
     shell.toast(`Rendering ${scale}× ${format.toUpperCase()}…`);
     const blob = await host.exportRaster(store.get(), scale, format);
@@ -224,6 +319,7 @@ async function exportRaster(scale: number, format: "png" | "jpeg"): Promise<void
 }
 
 async function exportSvg(scale: number): Promise<void> {
+  if (!host.hasImage()) return void shell.toast("Load an image first", "warn");
   try {
     shell.toast("Serialising SVG…");
     const text = await host.exportSvg(store.get(), scale);
@@ -294,9 +390,37 @@ function showAbout(): void {
 
 /* ------------------------------------------------------------------- boot */
 
+function resetStats(): void {
+  shell.statCells.textContent = "—";
+  shell.statMs.textContent = "—";
+  shell.statSize.textContent = "—";
+  shell.statMode.textContent = host.usingWorker ? "worker" : "inline";
+}
+
+function buildEmptyState(): void {
+  shell.emptyActions.append(
+    button("Choose file", () => void chooseFile(), "btn primary"),
+    h("span", { class: "empty-or", text: "or try" }),
+    h(
+      "div",
+      { class: "chips" },
+      DEMO_IMAGES.map((d) =>
+        h("button", {
+          class: "chip",
+          attr: { type: "button" },
+          text: d.name,
+          on: { click: () => void useDemo(d.id) },
+        }),
+      ),
+    ),
+  );
+}
+
 async function boot(): Promise<void> {
   syncAll();
-  await useDemo("portrait");
+  resetStats();
+  buildEmptyState();
+  // Deliberately no default image: the canvas starts empty and waits for one.
 
   const intro = document.getElementById("intro");
   if (!intro) return;
