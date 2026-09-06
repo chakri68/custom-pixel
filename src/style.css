@@ -232,62 +232,6 @@ body.resizing .stage {
   cursor: grabbing;
 }
 
-/* ------------------------------------------------------- viewer controls */
-
-.viewer-bar {
-  position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.82);
-  opacity: 0.35;
-  transition: opacity 0.15s;
-}
-
-.frame:hover .viewer-bar,
-.viewer-bar:focus-within {
-  opacity: 1;
-}
-
-.frame.is-empty .viewer-bar {
-  display: none;
-}
-
-.btn-mini {
-  padding: 3px 9px;
-  font-size: 11px;
-  border-radius: 999px;
-  border-color: transparent;
-  background: transparent;
-  color: var(--muted);
-  min-width: 28px;
-}
-
-.btn-mini:hover {
-  color: var(--accent);
-  border-color: var(--accent-dim);
-}
-
-.btn-mini.on {
-  color: var(--accent);
-  border-color: var(--accent);
-  font-weight: 700;
-}
-
-.zoom-label {
-  min-width: 48px;
-  text-align: center;
-  font-size: 11px;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-
 .busy {
   position: absolute;
   top: 12px;
@@ -636,6 +580,76 @@ input[type="color"]:disabled {
 .icon-btn.danger:hover {
   color: var(--danger);
   border-color: var(--danger);
+}
+
+/* ==================================================== viewer controls ==== */
+
+.viewer-bar {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.86);
+  backdrop-filter: blur(6px);
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+.frame:hover .viewer-bar,
+.viewer-bar:focus-within {
+  opacity: 1;
+}
+
+.frame.is-empty .viewer-bar {
+  display: none;
+}
+
+/* Doubled up on purpose: `.btn` sets fill, border, radius, padding and size,
+   and a single class would lose the tie-break to it. */
+.btn.btn-mini {
+  padding: 4px 10px;
+  min-width: 30px;
+  font-size: 11px;
+  line-height: 1;
+  border-radius: 999px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.btn.btn-mini:hover {
+  color: var(--accent);
+  background: rgba(255, 176, 0, 0.1);
+  border-color: transparent;
+}
+
+.btn.btn-mini.on {
+  color: var(--accent);
+  background: rgba(255, 176, 0, 0.14);
+  border-color: transparent;
+  font-weight: 700;
+}
+
+.viewer-sep {
+  width: 1px;
+  height: 14px;
+  margin: 0 3px;
+  background: var(--border);
+}
+
+.zoom-label {
+  min-width: 46px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
 }
 
 /* ============================================================= chips ==== */

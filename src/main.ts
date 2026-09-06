@@ -137,6 +137,7 @@ shell.viewerBar.append(
   button("−", () => host.zoomAt(1 / 1.4), "btn btn-mini"),
   zoomLabel,
   button("+", () => host.zoomAt(1.4), "btn btn-mini"),
+  h("span", { class: "viewer-sep", attr: { "aria-hidden": "true" } }),
   button("Fit", () => host.resetView(), "btn btn-mini"),
   peekBtn,
 );
