@@ -9,6 +9,9 @@
       content="Rebuild images out of hexagons, triangles, stars or your own SVG. Real-time, worker-backed, exports PNG and print-ready SVG."
     />
     <title>SHAPE PIXEL</title>
+    <meta name="theme-color" content="#000000" />
+    <!-- Governs the pre-paint canvas colour, before any CSS can apply. -->
+    <meta name="color-scheme" content="dark" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -19,6 +22,34 @@
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Boot mask: pure-black with no visible content until the app has mounted
+         and its styles are applied, then reveal — kills the flash of unstyled
+         HTML (Vite injects CSS via JS in dev; also guards a slow first load). -->
+    <style>
+      html {
+        background: #000;
+      }
+      body {
+        visibility: hidden;
+      }
+    </style>
+    <script>
+      addEventListener("DOMContentLoaded", function () {
+        requestAnimationFrame(function () {
+          document.body.style.visibility = "visible";
+        });
+      });
+    </script>
+    <noscript
+      ><style>
+        body {
+          visibility: visible;
+        }
+      </style></noscript
+    >
+    <!-- Amber Phosphor theme tokens — single source of truth -->
+    <link rel="stylesheet" href="https://theme.chakri.me/tokens.css" />
   </head>
   <body>
     <div id="app"></div>
